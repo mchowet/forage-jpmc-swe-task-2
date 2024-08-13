@@ -8,6 +8,8 @@ import './App.css';
  */
 interface IState {
   data: ServerRespond[],
+  showGraph: boolean,
+  fetchingData: boolean
 }
 
 /**
@@ -22,6 +24,8 @@ class App extends Component<{}, IState> {
       // data saves the server responds.
       // We use this state to parse data down to the child element (Graph) as element property
       data: [],
+      showGraph: false,
+      fetchingData: false
     };
   }
 
@@ -29,18 +33,36 @@ class App extends Component<{}, IState> {
    * Render Graph react component with state.data parse as property data
    */
   renderGraph() {
-    return (<Graph data={this.state.data}/>)
+    if (this.state.showGraph)
+    {
+        return (<Graph data={this.state.data}/>);
+    }
   }
 
   /**
    * Get new data from server and update the state with the new data
    */
   getDataFromServer() {
-    DataStreamer.getData((serverResponds: ServerRespond[]) => {
-      // Update the state by creating a new array of data that consists of
-      // Previous data in the state and the new data from server
-      this.setState({ data: [...this.state.data, ...serverResponds] });
-    });
+    const MAX_TICKS_PER_CLICK = 1000;
+    let tickCount = MAX_TICKS_PER_CLICK;
+
+    if (this.state.fetchingData)
+        return; // If we are already getting data, don't fire it again
+
+    this.setState({fetchingData: true});
+    const intervalID = setInterval(() => {
+        if (tickCount-- <= 0)
+        {
+            clearInterval(intervalID);
+            this.setState({fetchingData: false});
+        }
+        else
+        {
+            DataStreamer.getData((serverResponds: ServerRespond[]) => {
+                this.setState({data: serverResponds, showGraph: true});
+            });
+        }
+    }, 100);
   }
 
   /**
@@ -56,9 +78,6 @@ class App extends Component<{}, IState> {
           <button className="btn btn-primary Stream-button"
             // when button is click, our react app tries to request
             // new data from the server.
-            // As part of your task, update the getDataFromServer() function
-            // to keep requesting the data every 100ms until the app is closed
-            // or the server does not return anymore data.
             onClick={() => {this.getDataFromServer()}}>
             Start Streaming Data
           </button>
